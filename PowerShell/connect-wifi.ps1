@@ -16,6 +16,7 @@ function Open-LocationSettings {
     $DRIVE_ROOT = (Get-Location).Path.Substring(0, 3)
     $AUTOHOTKEY = "$DRIVE_ROOT`AutoHotkey_2.0.19\AutoHotkey64.exe"
     $SCRIPT = "$DRIVE_ROOT`AutoHotkey_2.0.19\Script\Enable_Location_Services.ahk"
+
     Start-Process ms-settings:privacy-location
     Start-Process $AUTOHOTKEY -ArgumentList $SCRIPT -Wait
 }
@@ -30,6 +31,7 @@ function Get-PrivacyLocation {
         Start-Sleep -Seconds $DURATION
         if ($PRIVACY_LOCATION_VALUE -eq "Allow") {
             $DURATION *= 2
+
             Start-Sleep -Seconds $DURATION
             return $true
         }
@@ -42,8 +44,9 @@ if (Get-Networks | Select-String -Pattern "(wlansvc)") {
     Set-ExecutionPolicy Unrestricted -Scope Process
     Start-Process powershell.exe $PSScriptRoot\get-drivers.ps1 -Wait -NoNewWindow
     for ($i = 1; $i -le 100; $i++ ) {
-        Write-Progress -Activity "Waiting for the device to detect the WiFi drivers..." -Status "$i%" -PercentComplete $i
         $SLEEP_TIME = Get-Random -Minimum 0 -Maximum 200
+
+        Write-Progress -Activity "Waiting for the device to detect the WiFi drivers..." -Status "$i%" -PercentComplete $i
         Start-Sleep -Milliseconds $SLEEP_TIME
     }
 }
@@ -53,8 +56,8 @@ if (Get-Networks | Select-String -Pattern "Access is denied") {
 }
 
 if ((-not (Get-PrivacyLocation)) -and (Get-Networks | Select-String -Pattern "Access is denied")) {
-    Write-Output "Location services not enabled, please connect to metaguest wifi manually"
-    Exit
+    Write-Output "Location services not enabled, please connect to metaguest wifi manually."
+    exit 1
 }
 
 if (Get-Networks | Select-String -Pattern $WIFI_NAME) {
@@ -63,4 +66,5 @@ if (Get-Networks | Select-String -Pattern $WIFI_NAME) {
 }
 else {
     Write-Output "Unable to find $WIFI_NAME"
+    exit 1
 }
