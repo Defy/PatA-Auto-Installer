@@ -1,5 +1,6 @@
 #Requires AutoHotkey v2.0
 #Include .\Lib\UIA.ahk
+#Include .\Lib\RunCMD.ahk
 
 Main()
 
@@ -148,6 +149,12 @@ ProvisionOptions(window) {
 
 PreProvisionWithAutopilot(window) {
     getQRCode := window.WaitElement({ AutomationId: "qrCodeImageLite" }, 60000, , , "LastToFirstOrder")
+    manufacturer := RunCMD("Powershell Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -Property Manufacturer")
+    if (manufacturer ~= "MSI") {
+        ; Add -NoExit paramater if terminal closes
+        Run("PowerShell -NoProfile -ExecutionPolicy Unrestricted -Command %~dp0check-me.ps1")
+        ExitApp
+    }
     if (getQRCode) {
         parentElement := getQRCode.WalkTree("p")
         deploymentProfile := parentElement.WaitElement({ Type: "Text", Name: "[User Device]", MatchMode: "StartsWith" }, 5000)
