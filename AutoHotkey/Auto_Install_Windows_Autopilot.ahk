@@ -25,25 +25,25 @@ Main()
 }
 
 Main() {
-    screenMap := Map(
-        1, SelectCountry,
-        2, SelectKeyboard,
-        3, AddSecondKeyboard,
-        4, ConnectToNetwork,
-        5, LoginScreen,
-        6, ProvisionOptions,
-        7, PreProvisionWithAutopilot
-    )
     WinWait("Microsoft account")
     WinActivate
     Sleep(1000)
+    screenArray := [
+        { function: SelectCountry, element: { Type: "Pane", Name: "Is this the right country", MatchMode: "StartsWith" } },
+        { function: SelectKeyboard, element: { Type: "Text", Name: "Is this the right keyboard", MatchMode: "StartsWith" } },
+        { function: AddSecondKeyboard, element: { Type: "Pane", Name: "Want to add", MatchMode: "StartsWith" } },
+        { function: ConnectToNetwork, element: { Type: "Window", Name: "Network Connection Flow" } },
+        { function: LoginScreen, element: { Type: "Pane", Name: "Sign in to your account" } },
+        { function: ProvisionOptions, element: { Type: "Pane", Name: "What would you", MatchMode: "StartsWith" } },
+        { function: PreProvisionWithAutopilot, element: { AutomationId: "qrCodeImageLite" } }
+    ]
     getProgramWindow := UIA.ElementFromHandle("Microsoft account ahk_exe WWAHost.exe")
-    currentScreen := GetCurrentScreen(getProgramWindow)
-    for (index in screenMap) {
+    currentScreen := GetCurrentScreen(getProgramWindow, screenArray)
+    for (index, screenObject in screenArray) {
         if (index < currentScreen) {
             continue
         }
-        screenMap.Get(index)(getProgramWindow)
+        screenObject.function.Call(getProgramWindow)
     }
     SoundBeep(, 1000)
     ExitApp
@@ -51,8 +51,8 @@ Main() {
 
 SelectCountry(window, country := "United States") {
     parentElement := window.WaitElement({ Type: "Pane", Name: "Is this the right country", MatchMode: "StartsWith" },
-        5000,
-        UIA.TreeScope.Children)
+    5000,
+    UIA.TreeScope.Children)
     if (parentElement) {
         parentElement.WaitElement({ Type: "ListItem", Name: country }, 5000).Invoke()
         parentElement.FindElement({ Type: "Button", Name: "Yes" }, , , "LastToFirstOrder").Invoke()
@@ -74,7 +74,7 @@ SelectKeyboard(window, country := "US") {
 
 AddSecondKeyboard(window) {
     parentElement := window.WaitElement({ Type: "Pane", Name: "Want to add", MatchMode: "StartsWith" }, 5000,
-        UIA.TreeScope.Children)
+    UIA.TreeScope.Children)
     if (parentElement) {
         parentElement.FindElement({ Type: "Button", Name: "Skip", MatchMode: "StartsWith" }, , , "LastToFirstOrder").Invoke()
         return
@@ -83,25 +83,31 @@ AddSecondKeyboard(window) {
 }
 
 ConnectToNetwork(window) {
-    parentElement := window.WaitElement({ Type: "Window", Name: "Network Connection Flow" }, 30000,
-        UIA.TreeScope.Children)
+    parentElement := window.WaitElement({ Type: "Window", Name: "Network Connection Flow" }, 30000)
     if (parentElement) {
         metaguestItem := parentElement.FindElement({ Type: "ListItem", Name: "metaguest", MatchMode: "StartsWith" })
-        isConnected := metaguestItem.WaitElement({ Type: "Text", Name: "Connected" }, 10000)
+        isConnected := metaguestItem.WaitElement({ Type: "Text", Name: "Connected", MatchMode: "StartsWith" }, 10000)
         if (isConnected) {
-            parentElement.FindElement({ Type: "Button", Name: "Connect" }, , , "LastToFirstOrder").Invoke()
+            parentElement.FindElement({ Type: "Button", Name: "Next" }, , , "LastToFirstOrder").Invoke()
             return
         }
-        ; metaguestItem.Invoke()
-        ; metaguestItem.FindElement({ Type: "CheckBox", Name: "Connect automatically" }).Invoke()
-        ; metaguestItem.FindElement({ Type: "Button", Name: "Connect" }).Invoke()
-        ; metaguestItem.FindElement({ AutomationId: "PassKeyPasswordBox" }).Value := "effici3ncy"
-        ; metaguestItem.FindElement({ AutomationId: "NextButton" }, , , "LastToFirstOrder")
-        ; isConnected := metaguestItem.WaitElement({ AutomationId: "SystemSettings_Connection", Name: "Connected, secured" }, 10000)
-        ; if (isConnected) {
-        ;     parentElement.FindElement({ Type: "Button", Name: "Connect" }, , , "LastToFirstOrder").Invoke()
-        ;     return
-        ; }
+        try {
+            metaguestItem.Select()
+            metaguestItem.ScrollIntoView()
+            metaguestItem.FindElement({ Type: "CheckBox", Name: "Connect automatically" }).ToggleState := 1
+            metaguestItem.FindElement({ Type: "Button", Name: "Connect" }).Invoke()
+            metaguestItem.WaitElement([
+                { AutomationId: "PassKeyPasswordBox" },
+                { AutomationId: "WCNComboPasswordBox" }
+            ],
+            10000).SetValue("effici3ncy")
+            metaguestItem.FindElement({ AutomationId: "NextButton" }, , , "LastToFirstOrder").Invoke()
+            isConnected := parentElement.WaitElement({ Type: "Text", Name: "Connected, secured" }, 5000)
+            if (isConnected) {
+                parentElement.FindElement({ AutomationId: "NextButton" }, , , "LastToFirstOrder").Invoke()
+                return
+            }
+        }
         MsgBox("Unable to connect to the Wifi, please manually connect to the network.", "Warning!", "Icon!")
         Exit
         return
@@ -111,15 +117,16 @@ ConnectToNetwork(window) {
 
 LoginScreen(window) {
     parentElement := window.WaitElement({ Type: "Pane", Name: "Sign in to your account" },
-        60000,
-        UIA.TreeScope.Children)
+    60000,
+    UIA.TreeScope.Children)
     companyLogo := parentElement.WaitElement({ Type: "Image", LocalizedType: "image" }, 5000).Name
     if (companyLogo == "Microsoft") {
         MsgBox "
         (
         Register the device for Autopilot in Intune before proceeding!
         Restart the machine once the device is registered in Intune.
-        )", "Warning!", "Icon!"
+        )",
+            "Warning!", "Icon!"
         Exit
         return
     }
@@ -138,7 +145,11 @@ LoginScreen(window) {
 ProvisionOptions(window) {
     getTitle := window.WaitElement({ Type: "Pane", Name: "What would you", MatchMode: "StartsWith" }, 10000)
     if (getTitle) {
-        buttons := getTitle.FindElements([{ Type: "ListItem", Name: "Pre-provision", MatchMode: "StartsWith" }, { Type: "Button", Name: "Next" }])
+        buttons := getTitle.FindElements([
+            { Type: "ListItem", Name: "Pre-provision", MatchMode: "StartsWith" },
+            { Type: "Button",
+                Name: "Next" }
+        ])
         for (button in buttons) {
             button.Invoke()
         }
@@ -149,7 +160,8 @@ ProvisionOptions(window) {
 
 PreProvisionWithAutopilot(window) {
     getQRCode := window.WaitElement({ AutomationId: "qrCodeImageLite" }, 60000, , , "LastToFirstOrder")
-    manufacturer := RunCMD("Powershell Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -Property Manufacturer")
+    manufacturer := RunCMD(
+        "Powershell Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -Property Manufacturer")
     if (manufacturer ~= "MSI") {
         ; Add -NoExit paramater if terminal closes
         Run("PowerShell -NoProfile -ExecutionPolicy Unrestricted -Command %~dp0check-me.ps1")
@@ -157,7 +169,8 @@ PreProvisionWithAutopilot(window) {
     }
     if (getQRCode) {
         parentElement := getQRCode.WalkTree("p")
-        deploymentProfile := parentElement.WaitElement({ Type: "Text", Name: "[User Device]", MatchMode: "StartsWith" }, 5000)
+        deploymentProfile := parentElement.WaitElement({ Type: "Text", Name: "[User Device]", MatchMode: "StartsWith" },
+        5000)
         if (deploymentProfile) {
             parentElement.FindElement({ Type: "Button", Name: "Next" }, , , "LastToFirstOrder").Invoke()
             return
@@ -172,11 +185,9 @@ DisplayErrorMessage(message := "Failed to proceed to the next screen...") {
     Exit
 }
 
-GetCurrentScreen(programWindow) {
-    screenArray := [{ Type: "Pane", Name: "Is this the right country", MatchMode: "StartsWith" }, { Type: "Text", Name: "Is this the right keyboard", MatchMode: "StartsWith" }, { Type: "Pane", Name: "Want to add", MatchMode: "StartsWith" }, { Type: "Window", Name: "Network Connection Flow" }, { Type: "Pane", Name: "Sign in to your account" }, { Type: "Pane", Name: "What would you", MatchMode: "StartsWith" }, { AutomationId: "qrCodeImageLite" },
-    ]
+GetCurrentScreen(programWindow, screenArray) {
     for (index, screen in screenArray) {
-        if (programWindow.ElementExist(screen)) {
+        if (programWindow.ElementExist(screen.element)) {
             return index
         }
     }

@@ -25,24 +25,24 @@ Main()
 }
 
 Main() {
-    windowsMap := Map(
-        1, SelectLanguage,
-        2, SelectKeyboard,
-        3, SelectSetupOption,
-        4, GetImageTypes,
-        5, AcceptLicenseTerms,
-        6, SelectDiskInstallation,
-        7, InstallWindows
-    )
     WinWait("Windows 11 Setup")
     WinActivate
     Sleep(1000)
-    currentWindow := GetCurrentScreen()
-    for (index in windowsMap) {
-        if (index < currentWindow) {
+    screensArray := [
+        { function: SelectLanguage, title: "Select language settings" },
+        { function: SelectKeyboard, title: "Select keyboard settings" },
+        { function: SelectSetupOption, title: "Select setup option" },
+        { function: GetImageTypes, title: "Select Image" },
+        { function: AcceptLicenseTerms, title: "Applicable notices and license terms" },
+        { function: SelectDiskInstallation, title: "Select location to install Windows 11" },
+        { function: InstallWindows, title: "Ready to install" }
+    ]
+    currentScreen := GetCurrentScreen(screensArray)
+    for (index, screenObject in screensArray) {
+        if (index < currentScreen) {
             continue
         }
-        windowsMap.Get(index)()
+        screenObject.function.Call()
     }
     SoundBeep(, 1000)
     ExitApp
@@ -185,10 +185,10 @@ SelectDiskInstallation() {
                 continue
             }
             (option < 0) ? navigation.navigate := "{Up}" : navigation.navigate := "{Down}"
-            navigation.steps := Abs(option)
-            break
+                navigation.steps := Abs(option)
+                break
         }
-        Loop navigation.steps {
+        loop navigation.steps {
             SendInput(navigation.navigate)
             Sleep(100)
         }
@@ -205,7 +205,7 @@ SelectDiskInstallation() {
     IsDisk0Unallocated() {
         list := GetListContent()
         if (!RegexMatch(list, "m)^Disk 0 Partition")
-            && RegexMatch(list, "Disk 0 Unallocated Space")) {
+        && RegexMatch(list, "Disk 0 Unallocated Space")) {
             return true
         }
         return false
@@ -233,18 +233,9 @@ DisplayErrorMessage(message := "Failed to proceed to the next screen...") {
     Exit
 }
 
-GetCurrentScreen() {
-    windowsArray := [
-        "Select language settings",
-        "Select keyboard settings",
-        "Select setup option",
-        "Select Image",
-        "Applicable notices and license terms",
-        "Select location to install Windows 11",
-        "Ready to install"
-    ]
-    for (index, window in windowsArray) {
-        if (WinExist(, window)) {
+GetCurrentScreen(screensArray) {
+    for (index, screen in screensArray) {
+        if (WinExist(, screen.title)) {
             return index
         }
     }
