@@ -39,12 +39,15 @@ Main() {
     ]
     getProgramWindow := UIA.ElementFromHandle("Microsoft account ahk_exe WWAHost.exe")
     currentScreen := GetCurrentScreen(getProgramWindow, screenArray)
+
     for (index, screenObject in screenArray) {
         if (index < currentScreen) {
             continue
         }
+
         screenObject.function.Call(getProgramWindow)
     }
+
     SoundBeep(, 1000)
     ExitApp
 }
@@ -53,66 +56,74 @@ SelectCountry(window, country := "United States") {
     parentElement := window.WaitElement({ Type: "Pane", Name: "Is this the right country", MatchMode: "StartsWith" },
     5000,
     UIA.TreeScope.Children)
-    if (parentElement) {
-        parentElement.WaitElement({ Type: "ListItem", Name: country }, 5000).Invoke()
-        parentElement.FindElement({ Type: "Button", Name: "Yes" }, , , "LastToFirstOrder").Invoke()
-        return
+
+    if (!parentElement) {
+        return DisplayErrorMessage()
     }
-    DisplayErrorMessage()
+
+    parentElement.WaitElement({ Type: "ListItem", Name: country }, 5000).Invoke()
+    parentElement.FindElement({ Type: "Button", Name: "Yes" }, , , "LastToFirstOrder").Invoke()
 }
 
 SelectKeyboard(window, country := "US") {
     getTitle := window.WaitElement({ Type: "Text", Name: "Is this the right keyboard", MatchMode: "StartsWith" }, 5000)
-    if (getTitle) {
-        parentElement := getTitle.WalkTree("p")
-        parentElement.FindElement({ Type: "ListItem", Name: country }).Invoke()
-        parentElement.FindElement({ Type: "Button", Name: "Yes" }, , , "LastToFirstOrder").Invoke()
-        return
+
+    if (!getTitle) {
+        return DisplayErrorMessage()
     }
-    DisplayErrorMessage()
+
+    parentElement := getTitle.WalkTree("p")
+    parentElement.FindElement({ Type: "ListItem", Name: country }).Invoke()
+    parentElement.FindElement({ Type: "Button", Name: "Yes" }, , , "LastToFirstOrder").Invoke()
 }
 
 AddSecondKeyboard(window) {
     parentElement := window.WaitElement({ Type: "Pane", Name: "Want to add", MatchMode: "StartsWith" }, 5000,
     UIA.TreeScope.Children)
-    if (parentElement) {
-        parentElement.FindElement({ Type: "Button", Name: "Skip", MatchMode: "StartsWith" }, , , "LastToFirstOrder").Invoke()
-        return
+
+    if (!parentElement) {
+        return DisplayErrorMessage()
     }
-    DisplayErrorMessage()
+
+    parentElement.FindElement({ Type: "Button", Name: "Skip", MatchMode: "StartsWith" }, , , "LastToFirstOrder").Invoke()
 }
 
 ConnectToNetwork(window) {
     parentElement := window.WaitElement({ Type: "Window", Name: "Network Connection Flow" }, 30000)
-    if (parentElement) {
-        metaguestItem := parentElement.FindElement({ Type: "ListItem", Name: "metaguest", MatchMode: "StartsWith" })
-        isConnected := metaguestItem.WaitElement({ Type: "Text", Name: "Connected", MatchMode: "StartsWith" }, 10000)
-        if (isConnected) {
-            parentElement.FindElement({ Type: "Button", Name: "Next" }, , , "LastToFirstOrder").Invoke()
-            return
-        }
-        try {
-            metaguestItem.Select()
-            metaguestItem.ScrollIntoView()
-            metaguestItem.FindElement({ Type: "CheckBox", Name: "Connect automatically" }).ToggleState := 1
-            metaguestItem.FindElement({ Type: "Button", Name: "Connect" }).Invoke()
-            metaguestItem.WaitElement([
-                { AutomationId: "PassKeyPasswordBox" },
-                { AutomationId: "WCNComboPasswordBox" }
-            ],
-            10000).SetValue("effici3ncy")
-            metaguestItem.FindElement({ AutomationId: "NextButton" }, , , "LastToFirstOrder").Invoke()
-            isConnected := parentElement.WaitElement({ Type: "Text", Name: "Connected, secured" }, 5000)
-            if (isConnected) {
-                parentElement.FindElement({ AutomationId: "NextButton" }, , , "LastToFirstOrder").Invoke()
-                return
-            }
-        }
-        MsgBox("Unable to connect to the Wifi, please manually connect to the network.", "Warning!", "Icon!")
-        Exit
+
+    if (!parentElement) {
+        return DisplayErrorMessage()
+    }
+
+    metaguestItem := parentElement.FindElement({ Type: "ListItem", Name: "metaguest", MatchMode: "StartsWith" })
+    isConnected := metaguestItem.WaitElement({ Type: "Text", Name: "Connected", MatchMode: "StartsWith" }, 10000)
+
+    if (isConnected) {
+        parentElement.FindElement({ Type: "Button", Name: "Next" }, , , "LastToFirstOrder").Invoke()
         return
     }
-    DisplayErrorMessage()
+
+    try {
+        metaguestItem.Select()
+        metaguestItem.ScrollIntoView()
+        metaguestItem.FindElement({ Type: "CheckBox", Name: "Connect automatically" }).ToggleState := 1
+        metaguestItem.FindElement({ Type: "Button", Name: "Connect" }).Invoke()
+        metaguestItem.WaitElement([
+            { AutomationId: "PassKeyPasswordBox" },
+            { AutomationId: "WCNComboPasswordBox" }
+        ],
+        10000).SetValue("effici3ncy")
+        metaguestItem.FindElement({ AutomationId: "NextButton" }, , , "LastToFirstOrder").Invoke()
+        isConnected := parentElement.WaitElement({ Type: "Text", Name: "Connected, secured" }, 5000)
+
+        if (isConnected) {
+            parentElement.FindElement({ AutomationId: "NextButton" }, , , "LastToFirstOrder").Invoke()
+            return
+        }
+    }
+
+    MsgBox("Unable to connect to the Wifi, please manually connect to the network.", "Warning!", "Icon!")
+    Exit
 }
 
 LoginScreen(window) {
@@ -120,6 +131,11 @@ LoginScreen(window) {
     60000,
     UIA.TreeScope.Children)
     companyLogo := parentElement.WaitElement({ Type: "Image", LocalizedType: "image" }, 5000).Name
+
+    if (!(companyLogo == "Microsoft") && !(companyLogo == "Organization banner logo")) {
+        return DisplayErrorMessage()
+    }
+
     if (companyLogo == "Microsoft") {
         MsgBox "
         (
@@ -127,57 +143,63 @@ LoginScreen(window) {
         Restart the machine once the device is registered in Intune.
         )",
             "Warning!", "Icon!"
-        Exit
-        return
+        return Exit
     }
+
     if (companyLogo == "Organization banner logo") {
         companyEmail := parentElement.FindElement({ AutomationId: "i0116" })
-        if (companyEmail.Name ~= "meta.com$") {
-            companyEmail.Invoke()
-            SendInput("{LWin 5}")
-            return
+
+        if (!(companyEmail.Name ~= "meta.com$")) {
+            return DisplayErrorMessage("Asset belongs to another organization. Please pick a different asset...")
         }
-        DisplayErrorMessage("Asset belongs to another organization. Please pick a different asset...")
+
+        companyEmail.Invoke()
+        SendInput("{LWin 5}")
     }
-    DisplayErrorMessage()
 }
 
 ProvisionOptions(window) {
     getTitle := window.WaitElement({ Type: "Pane", Name: "What would you", MatchMode: "StartsWith" }, 10000)
-    if (getTitle) {
-        buttons := getTitle.FindElements([
-            { Type: "ListItem", Name: "Pre-provision", MatchMode: "StartsWith" },
-            { Type: "Button",
-                Name: "Next" }
-        ])
-        for (button in buttons) {
-            button.Invoke()
-        }
-        return
+
+    if (!getTitle) {
+        return DisplayErrorMessage()
     }
-    DisplayErrorMessage()
+
+    buttons := getTitle.FindElements([
+        { Type: "ListItem", Name: "Pre-provision", MatchMode: "StartsWith" },
+        { Type: "Button",
+            Name: "Next" }
+    ])
+
+    for (button in buttons) {
+        button.Invoke()
+    }
 }
 
 PreProvisionWithAutopilot(window) {
     getQRCode := window.WaitElement({ AutomationId: "qrCodeImageLite" }, 60000, , , "LastToFirstOrder")
     manufacturer := RunCMD(
         "Powershell Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -Property Manufacturer")
+
     if (manufacturer ~= "MSI") {
         ; Add -NoExit paramater if terminal closes
         Run("PowerShell -NoProfile -ExecutionPolicy Unrestricted -Command %~dp0check-me.ps1")
         ExitApp
     }
-    if (getQRCode) {
-        parentElement := getQRCode.WalkTree("p")
-        deploymentProfile := parentElement.WaitElement({ Type: "Text", Name: "[User Device]", MatchMode: "StartsWith" },
-        5000)
-        if (deploymentProfile) {
-            parentElement.FindElement({ Type: "Button", Name: "Next" }, , , "LastToFirstOrder").Invoke()
-            return
-        }
-        DisplayErrorMessage("Couldn't confirm Autopilot Profile.")
+
+    if (!getQRCode) {
+        return DisplayErrorMessage()
     }
-    DisplayErrorMessage()
+
+    parentElement := getQRCode.WalkTree("p")
+    deploymentProfile := parentElement.WaitElement({ Type: "Text", Name: "[User Device]", MatchMode: "StartsWith" },
+    5000)
+
+    if (!deploymentProfile) {
+        return DisplayErrorMessage("Couldn't confirm Autopilot Profile.")
+    }
+    
+    parentElement.FindElement({ Type: "Button", Name: "Next" }, , , "LastToFirstOrder").Invoke()
 }
 
 DisplayErrorMessage(message := "Failed to proceed to the next screen...") {
@@ -191,5 +213,6 @@ GetCurrentScreen(programWindow, screenArray) {
             return index
         }
     }
+
     DisplayErrorMessage("Could not find the active screen...")
 }
