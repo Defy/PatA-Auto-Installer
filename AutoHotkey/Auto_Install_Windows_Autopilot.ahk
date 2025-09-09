@@ -37,15 +37,15 @@ Main() {
         { function: ProvisionOptions, element: { Type: "Pane", Name: "What would you", MatchMode: "StartsWith" } },
         { function: PreProvisionWithAutopilot, element: { AutomationId: "qrCodeImageLite" } }
     ]
-    getProgramWindow := UIA.ElementFromHandle("Microsoft account ahk_exe WWAHost.exe")
-    currentScreen := GetCurrentScreen(getProgramWindow, screenArray)
+    programWindow := UIA.ElementFromHandle("Microsoft account ahk_exe WWAHost.exe")
+    currentScreen := GetCurrentScreen(programWindow, screenArray)
 
     for (index, screenObject in screenArray) {
         if (index < currentScreen) {
             continue
         }
 
-        screenObject.function.Call(getProgramWindow)
+        screenObject.function.Call(programWindow)
     }
 
     SoundBeep(, 1000)
@@ -181,7 +181,7 @@ PreProvisionWithAutopilot(window) {
     manufacturer := RunCMD(
         "Powershell Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -Property Manufacturer")
 
-    if (manufacturer ~= "MSI") {
+    if (manufacturer ~= "Micro-Star International") {
         ; Add -NoExit paramater if terminal closes
         Run("PowerShell -NoProfile -ExecutionPolicy Unrestricted -Command %~dp0check-me.ps1")
         ExitApp
@@ -198,12 +198,12 @@ PreProvisionWithAutopilot(window) {
     if (!deploymentProfile) {
         return DisplayErrorMessage("Couldn't confirm Autopilot Profile.")
     }
-    
+
     parentElement.FindElement({ Type: "Button", Name: "Next" }, , , "LastToFirstOrder").Invoke()
 }
 
 DisplayErrorMessage(message := "Failed to proceed to the next screen...") {
-    MsgBox(message " `n`nStopping the auto installer.", "Error!", "Iconx")
+    MsgBox(message "`n`nStopping the auto installer.", "Error!", "Iconx")
     Exit
 }
 
