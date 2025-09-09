@@ -87,21 +87,19 @@ GetImageTypes() {
     SelectImageTypes("Windows 11 Enterprise")
     SendInput("!n")
 
-    SelectImageTypes(imageType, counter := 0) {
+    SelectImageTypes(imageType) {
         attempts := 10
 
-        if (counter > attempts) {
-            DisplayErrorMessage("Could not find Image Type... ")
+        loop attempts {
+            if (selectedImage.name == imageType) {
+                return
+            }
+
+            SendInput "{Down}"
+            Sleep(100)
         }
 
-        if (selectedImage.Name == imageType) {
-            return
-        }
-
-        SendInput "{Down}"
-        counter += 1
-        Sleep(100)
-        SelectImageTypes(imageType, counter)
+        return DisplayErrorMessage("Could not find the Image Type: " imageType "... ")
     }
 }
 
@@ -118,12 +116,11 @@ SelectDiskInstallation() {
         return DisplayErrorMessage()
     }
 
-    tryCounter := 0
     attempts := 10
 
     while (!IsDisk0Unallocated()) {
-        if (tryCounter > attempts) {
-            DisplayErrorMessage("Could not delete all the partitions...")
+        if (A_Index > attempts) {
+            return DisplayErrorMessage("Could not delete all the partitions...")
         }
 
         selectedRow := UIA.GetFocusedElement().Name
@@ -133,7 +130,6 @@ SelectDiskInstallation() {
         }
 
         GoToOption(GetDiskSteps(selectedRow))
-        tryCounter += 1
     }
 
     selectedRow := UIA.GetFocusedElement().Name
@@ -239,10 +235,11 @@ SelectDiskInstallation() {
     }
 
     WaitForPartitionDeletion() {
-        refresh := { X1: 45, Y1: 115, X2: 55, Y2: 125 }
+        programWindow := UIA.ElementFromHandle("Windows 11 Setup ahk_exe SetupHost.exe")
+        refresh := programWindow.FindElement({ AutomationId: "2321" })
 
         Sleep(1000)
-        while (!PixelSearch(&pixelX, &pixelY, refresh.X1, refresh.Y1, refresh.X2, refresh.Y2, 0x3AA5E4, 3)) {
+        while (!refresh.isEnabled) {
             Sleep(500)
         }
     }
@@ -252,7 +249,7 @@ InstallWindows() {
     if (!WinWait(, "Ready to install", 20)) {
         return DisplayErrorMessage()
     }
-    
+
     SendInput("!i")
 }
 
